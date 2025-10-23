@@ -150,14 +150,14 @@ document.addEventListener("DOMContentLoaded",()=>{
     function render(){
       box.innerHTML='';
       if(i>=qs.length){
-        const done=document.createElement('p'); done.className='score'; done.textContent=✅ Done! Score: ${score}/${qs.length};
+        const done=document.createElement('p'); done.className='score'; done.textContent = `✅ Done! Score: ${score}/${qs.length}`;
         const again=document.createElement('button'); again.className='btn'; again.textContent='Play Again';
         again.onclick=()=>gameRenderers['quick-quiz'](c); box.append(done,again); return;
       }
       const cur=qs[i]; const qText=document.createElement('h3'); qText.textContent=cur.q; box.append(qText);
       const input=document.createElement('input'); input.placeholder='Answer here'; box.append(input);
       const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Submit';
-      btn.onclick=()=>{if(input.value.trim().toLowerCase()===cur.a.toLowerCase())score++; i++; render();}
+      btn.onclick=()=>{if(input.value.trim().toLowerCase()===String(cur.a).toLowerCase())score++; i++; render();}
       box.append(btn);
     }
     render();
@@ -167,10 +167,12 @@ document.addEventListener("DOMContentLoaded",()=>{
     let i=0,score=0; const total=10; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
     function render(){
       box.innerHTML='';
-      if(i>=total){const done=document.createElement('p');done.className='score';done.textContent=✅ Done! Score: ${score}/${total};
-        const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['math-master'](c); box.append(done,again); return;}
+      if(i>=total){
+        const done=document.createElement('p');done.className='score';done.textContent = `✅ Done! Score: ${score}/${total}`;
+        const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['math-master'](c); box.append(done,again); return;
+      }
       const a=randInt(1,50),b=randInt(1,50); const ans=a+b;
-      const qText=document.createElement('h3'); qText.textContent=${a} + ${b} = ?; box.append(qText);
+      const qText=document.createElement('h3'); qText.textContent = `${a} + ${b} = ?`; box.append(qText);
       const input=document.createElement('input'); input.type='number'; box.append(input);
       const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Submit';
       btn.onclick=()=>{if(Number(input.value)===ans)score++; i++; render();}; box.append(btn);
@@ -179,14 +181,19 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
   gameRenderers['memory-match']=c=>{
     const items=['🍎','🍌','🍇','🍊','🍉','🥝','🍒','🍓']; const pair=[...items,...items]; shuffle(pair);
-    let selected=[],matches=0; c.innerHTML=''; const box=document.createElement('div'); box.style.display='flex'; box.style.gridTemplateColumns='repeat(auto-fit,minmax(60px,1fr))'; box.style.gap='12px'; c.append(box);
+    let selected=[],matches=0; c.innerHTML=''; const box=document.createElement('div'); box.style.display='grid'; box.style.gridTemplateColumns='repeat(auto-fit,minmax(60px,1fr))'; box.style.gap='12px'; c.append(box);
     pair.forEach((item,i)=>{
       const btn=document.createElement('button'); btn.className='btn'; btn.style.fontSize='24px'; btn.textContent='❓';
       btn.onclick=()=>{
-        if(selected.length<2 && !btn.dataset.revealed){btn.textContent=item; selected.push({btn,item});}
+        if(selected.length<2 && !btn.dataset.revealed && !btn.disabled){btn.textContent=item; selected.push({btn,item});}
         if(selected.length===2){
           setTimeout(()=>{
-            if(selected[0].item===selected[1].item){selected.forEach(s=>s.btn.disabled=true); matches+=1;}else{selected.forEach(s=>s.btn.textContent='❓');}
+            if(selected[0].item===selected[1].item){
+              selected.forEach(s=>{s.btn.disabled=true; s.btn.dataset.revealed = '1';});
+              matches+=1;
+            } else {
+              selected.forEach(s=>s.btn.textContent='❓');
+            }
             selected=[]; if(matches===items.length){const done=document.createElement('p');done.className='score';done.textContent='🎉 All pairs found!'; const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['memory-match'](c); c.append(done,again);}
           },500);
         }
@@ -206,7 +213,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   gameRenderers['pattern-finder']=c=>{
     const seq=[[2,4,6],[3,6,9],[5,10,15],[7,14,21],[1,2,3],[8,16,24],[9,18,27],[10,20,30],[11,22,33],[12,24,36]]; let i=0,score=0; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
     function render(){box.innerHTML=''; if(i>=seq.length){const done=document.createElement('p');done.className='score';done.textContent=`✅ Done! Score: ${score}/${seq.length}`; const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['pattern-finder'](c); box.append(done,again); return;}
-      const cur=seq[i]; const qText=document.createElement('h3'); qText.textContent=Find next number: ${cur.join(',')}, ?; box.append(qText);
+      const cur=seq[i]; const qText=document.createElement('h3'); qText.textContent = `Find next number: ${cur.join(',')}, ?`; box.append(qText);
       const input=document.createElement('input'); box.append(input);
       const btn=document.createElement('button');btn.className='btn';btn.textContent='Submit';
       btn.onclick=()=>{if(Number(input.value)===cur[1]+cur[1]-cur[0])score++; i++; render();}; box.append(btn);
@@ -237,7 +244,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Guess'; c.append(btn);
     const out=document.createElement('div'); out.style.marginTop='10px'; c.append(out);
     btn.onclick=()=>{
-      if(input.value.trim()===''){out.textContent='Enter a number!'; return;}
+      if(String(input.value).trim()===''){out.textContent='Enter a number!'; return;}
       const v=Number(input.value); tries++;
       if(v===secret){out.textContent=`🎉 Correct! Guessed in ${tries} tries.`; input.disabled=true; btn.disabled=true;
         const again=document.createElement('button'); again.className='btn'; again.textContent='Play Again'; again.style.marginTop='10px';
