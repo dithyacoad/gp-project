@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SmartMind — Boost Your Brain</title>
+<meta name="description" content="SmartMind — fun brain games for students (offline, single file)">
+<style>
+:root{
+  --bg:#0f1724;
+  --card:#0b1220;
+  --accent:#6ee7b7;
+  --accent2:#34d399;
+  --muted:#94a3b8;
+  --glass:rgba(255,255,255,0.04);
+}
+*{box-sizing:border-box;transition:all .3s ease;}
+html,body{height:100%;margin:0;font-family:"Poppins",system-ui,Segoe UI,Roboto,Arial;background:radial-gradient(circle at 30% 20%,#12203a,#070c18 80%);color:#e6eef8;overflow:hidden;}
+body{display:flex;flex-direction:column;}
+.topbar{padding:18px 22px;background:linear-gradient(90deg,rgba(255,255,255,0.03),transparent);display:flex;align-items:center;gap:12px;animation:fadeDown .8s ease;}
+.topbar h1{margin:0;font-size:24px;letter-spacing:1px;color:var(--accent);}
+.topbar .tag{margin:0;color:var(--muted);font-size:13px}
+main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;padding:20px;}
+.page{display:none;width:100%;height:100%;overflow:auto;}
+.page.active{display:block;animation:fadeIn .5s ease;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;padding:20px;}
+.card{background:var(--glass);padding:20px;border-radius:16px;box-shadow:0 6px 20px rgba(0,0,0,0.4);display:flex;flex-direction:column;justify-content:space-between;border:1px solid rgba(255,255,255,0.05);backdrop-filter:blur(10px);cursor:pointer;}
+.card:hover{transform:translateY(-6px) scale(1.03);box-shadow:0 10px 30px rgba(110,231,183,0.2);}
+.btn{background:linear-gradient(90deg,var(--accent),var(--accent2));border:0;padding:10px 14px;border-radius:10px;color:#002218;cursor:pointer;font-weight:700;box-shadow:0 0 8px rgba(52,211,153,0.5);}
+.btn:hover{filter:brightness(1.1);transform:scale(1.05);}
+.btn.small{padding:6px 10px;border-radius:8px;font-weight:600;}
+input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.05);color:inherit;width:100%;}
+.loginBox{max-width:340px;margin:auto;background:var(--glass);padding:28px;border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,0.4);text-align:center;}
+.footer-note{color:var(--muted);margin-top:18px;text-align:center;font-size:13px;}
+.score{font-size:20px;font-weight:700;color:var(--accent);margin-bottom:10px;}
+.gameBox{max-width:500px;margin:auto;display:flex;flex-direction:column;align-items:center;gap:10px;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:none;}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <h1>SmartMind</h1>
+  <p class="tag">Boost your brain — offline-ready</p>
+</header>
+
+<main id="app">
+  <section id="login" class="page active">
+    <div class="loginBox">
+      <h2>👋 Welcome!</h2>
+      <p>Login with your school mail ID to play.</p>
+      <input type="email" id="email" placeholder="example@school.edu">
+      <button class="btn" id="loginBtn">Login</button>
+      <div id="loginMsg" style="color:var(--muted);margin-top:10px;"></div>
+    </div>
+  </section>
+  <section id="home" class="page">
+    <div style="padding:20px;text-align:center;">
+      <h2>🎮 Pick a Game</h2>
+      <p>7 fun games to train reasoning, memory, vocabulary & math skills.</p>
+      <p style="font-size:13px;color:var(--muted);">Logged in as <span id="userEmail"></span></p>
+      <button id="logoutBtn" class="btn small">Logout</button>
+    </div>
+    <div class="grid" id="gameGrid"></div>
+    <footer class="footer-note">Made with 💚 for learners — works offline once loaded.</footer>
+  </section>
+
+  <section id="gameView" class="page">
+    <div style="padding:20px;">
+      <button id="homeBtn" class="btn small">⬅ Home</button>
+      <h2 id="gameTitle" style="text-align:center;"></h2>
+      <div id="gameContainer" class="gameBox"></div>
+    </div>
+  </section>
+</main>
+
+<template id="cardTemplate">
+  <div class="card">
+    <h3 class="cardTitle"></h3>
+    <p class="cardDesc"></p>
+    <button class="btn playBtn">Play</button>
+  </div>
+</template>
+
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+  const loginPage=document.getElementById('login');
+  const homePage=document.getElementById('home');
+  const emailInput=document.getElementById('email');
+  const loginBtn=document.getElementById('loginBtn');
+  const loginMsg=document.getElementById('loginMsg');
+  const userEmailSpan=document.getElementById('userEmail');
+  const logoutBtn=document.getElementById('logoutBtn');
+  const pages=document.querySelectorAll('.page');
+  const gameGrid=document.getElementById('gameGrid');
+  const tpl=document.getElementById('cardTemplate');
+  const gameView=document.getElementById('gameView');
+  const gameTitle=document.getElementById('gameTitle');
+  const gameContainer=document.getElementById('gameContainer');
+  const homeBtn=document.getElementById('homeBtn');
+
+  const randInt=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+  const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a};
+
+  function switchPage(id){pages.forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');}
+  function showLogin(){switchPage('login');}
+  function showHome(email){userEmailSpan.textContent=email;switchPage('home');}
+
+  const storedUser=localStorage.getItem('smartmindUser');
+  if(storedUser){showHome(storedUser);}else{showLogin();}
+
+  loginBtn.onclick=()=>{
+    const email=emailInput.value.trim();
+    if(!email){loginMsg.textContent="Please enter your email.";return;}
+    if(!email.endsWith("@school.edu")){loginMsg.textContent="Only school emails (@school.edu) allowed.";return;}
+    localStorage.setItem('smartmindUser',email);
+    showHome(email);
+  };
+  logoutBtn.onclick=()=>{localStorage.removeItem('smartmindUser');showLogin();}
+  homeBtn.onclick=()=>switchPage('home');
+
+  const games=[
+    {id:'quick-quiz',title:'Quick Quiz',desc:'Answer 10 questions fast'},
+    {id:'math-master',title:'Math Master',desc:'Speed arithmetic challenges'},
+    {id:'memory-match',title:'Memory Match',desc:'Find all pairs'},
+    {id:'word-builder',title:'Word Builder',desc:'Form valid words'},
+    {id:'pattern-finder',title:'Pattern Finder',desc:'Spot the missing number'},
+    {id:'logic-challenge',title:'Logic Challenge',desc:'True/False reasoning'},
+    {id:'guess-number',title:'Guess the Number',desc:'Classic guessing fun'}
+  ];
+
+  games.forEach(g=>{
+    const clone=tpl.content.cloneNode(true);
+    clone.querySelector('.cardTitle').textContent=g.title;
+    clone.querySelector('.cardDesc').textContent=g.desc;
+    clone.querySelector('.playBtn').onclick=()=>openGame(g.id);
+    gameGrid.append(clone);
+  });
+
+  const gameRenderers={};
+  gameRenderers['quick-quiz']=c=>{
+    const qs=[
+      {q:"2+2=?",a:"4"},{q:"Capital of France?",a:"Paris"},
+      {q:"5*3=?",a:"15"},{q:"Water freezes at ? °C",a:"0"},
+      {q:"Sun rises from?",a:"East"},{q:"10-4=?",a:"6"},
+      {q:"Largest planet?",a:"Jupiter"},{q:"Opposite of cold?",a:"Hot"},
+      {q:"5+7=?",a:"12"},{q:"Square root of 64?",a:"8"}
+    ];
+    let i=0,score=0; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
+    function render(){
+      box.innerHTML='';
+      if(i>=qs.length){
+        const done=document.createElement('p'); done.className='score'; done.textContent=✅ Done! Score: ${score}/${qs.length};
+        const again=document.createElement('button'); again.className='btn'; again.textContent='Play Again';
+        again.onclick=()=>gameRenderers['quick-quiz'](c); box.append(done,again); return;
+      }
+      const cur=qs[i]; const qText=document.createElement('h3'); qText.textContent=cur.q; box.append(qText);
+      const input=document.createElement('input'); input.placeholder='Answer here'; box.append(input);
+      const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Submit';
+      btn.onclick=()=>{if(input.value.trim().toLowerCase()===cur.a.toLowerCase())score++; i++; render();}
+      box.append(btn);
+    }
+    render();
+  };
+
+  gameRenderers['math-master']=c=>{
+    let i=0,score=0; const total=10; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
+    function render(){
+      box.innerHTML='';
+      if(i>=total){const done=document.createElement('p');done.className='score';done.textContent=✅ Done! Score: ${score}/${total};
+        const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['math-master'](c); box.append(done,again); return;}
+      const a=randInt(1,50),b=randInt(1,50); const ans=a+b;
+      const qText=document.createElement('h3'); qText.textContent=${a} + ${b} = ?; box.append(qText);
+      const input=document.createElement('input'); input.type='number'; box.append(input);
+      const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Submit';
+      btn.onclick=()=>{if(Number(input.value)===ans)score++; i++; render();}; box.append(btn);
+    }
+    render();
+  };
+  gameRenderers['memory-match']=c=>{
+    const items=['🍎','🍌','🍇','🍊','🍉','🥝','🍒','🍓']; const pair=[...items,...items]; shuffle(pair);
+    let selected=[],matches=0; c.innerHTML=''; const box=document.createElement('div'); box.style.display='flex'; box.style.gridTemplateColumns='repeat(auto-fit,minmax(60px,1fr))'; box.style.gap='12px'; c.append(box);
+    pair.forEach((item,i)=>{
+      const btn=document.createElement('button'); btn.className='btn'; btn.style.fontSize='24px'; btn.textContent='❓';
+      btn.onclick=()=>{
+        if(selected.length<2 && !btn.dataset.revealed){btn.textContent=item; selected.push({btn,item});}
+        if(selected.length===2){
+          setTimeout(()=>{
+            if(selected[0].item===selected[1].item){selected.forEach(s=>s.btn.disabled=true); matches+=1;}else{selected.forEach(s=>s.btn.textContent='❓');}
+            selected=[]; if(matches===items.length){const done=document.createElement('p');done.className='score';done.textContent='🎉 All pairs found!'; const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['memory-match'](c); c.append(done,again);}
+          },500);
+        }
+      }; box.append(btn);
+    });
+  };
+  gameRenderers['word-builder']=c=>{
+    const words=['apple','banana','grape','orange','kiwi','mango','melon','peach','pear','plum']; let i=0,score=0; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
+    function render(){ box.innerHTML=''; if(i>=words.length){const done=document.createElement('p');done.className='score';done.textContent=`✅ Done! Score: ${score}/${words.length}`; const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['word-builder'](c); box.append(done,again); return;}
+      const cur=words[i]; const shuffled=shuffle(cur.split('')).join(''); const qText=document.createElement('h3'); qText.textContent=`Unscramble: ${shuffled}`; box.append(qText);
+      const input=document.createElement('input'); box.append(input);
+      const btn=document.createElement('button');btn.className='btn';btn.textContent='Submit';
+      btn.onclick=()=>{if(input.value.trim().toLowerCase()===cur){score++;} i++; render();}; box.append(btn);
+    }
+    render();
+  };
+  gameRenderers['pattern-finder']=c=>{
+    const seq=[[2,4,6],[3,6,9],[5,10,15],[7,14,21],[1,2,3],[8,16,24],[9,18,27],[10,20,30],[11,22,33],[12,24,36]]; let i=0,score=0; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
+    function render(){box.innerHTML=''; if(i>=seq.length){const done=document.createElement('p');done.className='score';done.textContent=`✅ Done! Score: ${score}/${seq.length}`; const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['pattern-finder'](c); box.append(done,again); return;}
+      const cur=seq[i]; const qText=document.createElement('h3'); qText.textContent=Find next number: ${cur.join(',')}, ?; box.append(qText);
+      const input=document.createElement('input'); box.append(input);
+      const btn=document.createElement('button');btn.className='btn';btn.textContent='Submit';
+      btn.onclick=()=>{if(Number(input.value)===cur[1]+cur[1]-cur[0])score++; i++; render();}; box.append(btn);
+    }
+    render();
+  };
+
+  gameRenderers['logic-challenge']=c=>{
+    const qs=[
+      {q:'A square always has four equal sides.',a:true},{q:'All even numbers are prime.',a:false},
+      {q:'Sound travels faster in air than in vacuum.',a:false},{q:'Water boils at 100°C at sea level.',a:true},
+      {q:'Humans can breathe underwater without equipment.',a:false},{q:'The Earth revolves around the Sun.',a:true},
+      {q:'Lightning never strikes the same place twice.',a:false},{q:'Bananas grow on trees.',a:false},
+      {q:'The Moon has its own light.',a:false},{q:'C++ is a programming language.',a:true}
+    ];
+    let i=0,score=0; c.innerHTML=''; const box=document.createElement('div'); c.append(box);
+    function render(){box.innerHTML=''; if(i>=qs.length){const done=document.createElement('p');done.className='score';done.textContent=`✅ Done! Score: ${score}/${qs.length}`; const again=document.createElement('button');again.className='btn';again.textContent='Play Again'; again.onclick=()=>gameRenderers['logic-challenge'](c); box.append(done,again); return;}
+      const cur=qs[i]; const qText=document.createElement('h3'); qText.textContent=cur.q; box.append(qText);
+      ['True','False'].forEach(v=>{const b=document.createElement('button'); b.className='btn'; b.textContent=v; b.onclick=()=>{if((v==='True')===cur.a)score++; i++; render();}; box.append(b);});
+    }
+    render();
+  };
+
+  gameRenderers['guess-number']=c=>{
+    const secret=randInt(1,100); let tries=0; c.innerHTML='';
+    const qText=document.createElement('h3'); qText.textContent='Guess a number between 1–100'; c.append(qText);
+    const input=document.createElement('input'); input.type='number'; input.min=1; input.max=100; c.append(input);
+    const btn=document.createElement('button'); btn.className='btn'; btn.textContent='Guess'; c.append(btn);
+    const out=document.createElement('div'); out.style.marginTop='10px'; c.append(out);
+    btn.onclick=()=>{
+      if(input.value.trim()===''){out.textContent='Enter a number!'; return;}
+      const v=Number(input.value); tries++;
+      if(v===secret){out.textContent=`🎉 Correct! Guessed in ${tries} tries.`; input.disabled=true; btn.disabled=true;
+        const again=document.createElement('button'); again.className='btn'; again.textContent='Play Again'; again.style.marginTop='10px';
+        again.onclick=()=>gameRenderers['guess-number'](c); c.appendChild(again);
+      } else {out.textContent=v<secret?'Too low!':'Too high!';}
+    };
+  };
+
+  window.openGame=id=>{
+    switchPage('gameView'); gameContainer.innerHTML='';
+    const g=games.find(x=>x.id===id); gameTitle.textContent=g.title;
+    gameRenderers[id]?.(gameContainer);
+  };
+});
+</script>
+</body>
+</html>
